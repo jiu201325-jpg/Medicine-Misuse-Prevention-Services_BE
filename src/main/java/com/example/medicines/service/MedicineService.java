@@ -50,32 +50,27 @@ public class MedicineService {
             throw new CustomException(ErrorCode.MISSING_IMAGE);
         }
 
-        // TODO: 여기서 CLOVA OCR 호출 → recognizedText 추출
-        // mock 단계: 파일명에 상품명이 포함되어 있으면 그걸로 매칭, 없으면 랜덤 분기
+        // TODO: Phase 1-3에서 실제 CLOVA OCR 결과로 교체
+        // 지금은 파일명(확장자 제외)을 OCR이 인식한 텍스트라고 가정
         String filename = image.getOriginalFilename() == null ? "" : image.getOriginalFilename();
+        String recognizedText = filename.replaceAll("\\.[a-zA-Z]+$", "").trim();
 
-        List<Medicine> all = medicineRepository.findAll();
-        Medicine matched = all.stream()
-                .filter(m -> m.getProductNames().stream().anyMatch(filename::contains))
-                .findFirst()
-                .orElse(null);
-
-        if (matched != null) {
-            return ScanResultDto.matched(matched.getName(), new MedicineDetailDto(matched));
+        if (recognizedText.isBlank()) {
+            return ScanResultDto.notFound();
         }
 
-        double roll = random.nextDouble();
-        if (roll < 0.7) {
-            Medicine picked = all.get(random.nextInt(all.size()));
-            return ScanResultDto.matched(picked.getName(), new MedicineDetailDto(picked));
-        } else if (roll < 0.9) {
-            List<MedicineSummaryDto> candidates = all.stream()
-                    .limit(2)
+        // 검색 API와 동일한 Repository 쿼리를 그대로 재사용
+        List<Medicine> matches = medicineRepository.searchByNameOrIngredient(recognizedText);
+
+        if (matches.isEmpty()) {
+            return ScanResultDto.notFound();
+        } else if (matches.size() == 1) {
+            return ScanResultDto.matched(recognizedText, new MedicineDetailDto(matches.get(0)));
+        } else {
+            List<MedicineSummaryDto> candidates = matches.stream()
                     .map(MedicineSummaryDto::new)
                     .collect(Collectors.toList());
-            return ScanResultDto.multipleCandidates("인식 불확실", candidates);
-        } else {
-            return ScanResultDto.notFound();
+            return ScanResultDto.multipleCandidates(recognizedText, candidates);
         }
     }
 

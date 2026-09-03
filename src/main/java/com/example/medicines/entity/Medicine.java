@@ -51,4 +51,8 @@ public class Medicine {
     private String easyExplanation;
 
     private String audioUrl;
+
+    public void updateEasyExplanation(String easyExplanation) {
+        this.easyExplanation = easyExplanation;
+    }
 }

@@ -1,10 +1,16 @@
 package com.example.medicines.controller;
 
 import com.example.medicines.dto.ApiResponse;
+import com.example.medicines.entity.Medicine;
 import com.example.medicines.service.MedicineService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.example.medicines.service.MedicationExplanationService;
+
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/medicines")
@@ -12,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class MedicineController {
 
     private final MedicineService medicineService;
+    private final MedicationExplanationService medicationExplanationService;
 
     // 2.1 POST /medicines/scan — 핵심 MVP
     @PostMapping("/scan")
@@ -41,5 +48,15 @@ public class MedicineController {
     @GetMapping
     public ApiResponse<?> getAll() {
         return ApiResponse.success(medicineService.getAll());
+    }
+
+    @PostMapping("/generate-explanations")
+    public ApiResponse<?> generateExplanations() {
+        return ApiResponse.success(medicineService.generateExplanations());
+    }
+
+    @PostMapping("/explanation")
+    public ApiResponse<?> getExplanation(@RequestBody List<Long> medicineIds) {
+        return ApiResponse.success(medicationExplanationService.getMedicationExplanation(medicineIds));
     }
 }

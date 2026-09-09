@@ -50,7 +50,6 @@ public class ClovaStudioClient {
         ResponseEntity<Map> response = restTemplate.postForEntity(
                 apiUrl, new HttpEntity<>(body, headers), Map.class);
 
-        // TODO: 아래 파싱은 콘솔 예제의 실제 응답 구조 확인 후 필드명 맞추기
         Map result = (Map) response.getBody().get("result");
         Map message = (Map) result.get("message");
         return (String) message.get("content");

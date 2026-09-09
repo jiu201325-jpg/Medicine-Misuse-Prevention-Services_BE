@@ -7,9 +7,11 @@ import com.example.medicines.exception.ErrorCode;
 import com.example.medicines.repository.MedicineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
 
@@ -18,6 +20,7 @@ import java.util.stream.Collectors;
 public class MedicineService {
 
     private final MedicineRepository medicineRepository;
+    private final ClovaStudioClient clovaStudioClient;
     private final Random random = new Random();
 
     public MedicineListDto getAll() {
@@ -50,8 +53,6 @@ public class MedicineService {
             throw new CustomException(ErrorCode.MISSING_IMAGE);
         }
 
-        // TODO: Phase 1-3에서 실제 CLOVA OCR 결과로 교체
-        // 지금은 파일명(확장자 제외)을 OCR이 인식한 텍스트라고 가정
         String filename = image.getOriginalFilename() == null ? "" : image.getOriginalFilename();
         String recognizedText = filename.replaceAll("\\.[a-zA-Z]+$", "").trim();
 
@@ -59,7 +60,6 @@ public class MedicineService {
             return ScanResultDto.notFound();
         }
 
-        // 검색 API와 동일한 Repository 쿼리를 그대로 재사용
         List<Medicine> matches = medicineRepository.searchByNameOrIngredient(recognizedText);
 
         if (matches.isEmpty()) {
@@ -72,6 +72,28 @@ public class MedicineService {
                     .collect(Collectors.toList());
             return ScanResultDto.multipleCandidates(recognizedText, candidates);
         }
+    }
+
+    @Transactional
+    public Map<String, Integer> generateExplanations() {
+        List<Medicine> all = medicineRepository.findAll();
+        int updated = 0, failed = 0;
+
+        for (Medicine m : all) {
+            try {
+                String explanation = clovaStudioClient.generateEasyExplanation(
+                        m.getEffect(),
+                        m.getUsage(),
+                        m.getPrecautions(),
+                        String.join(", ", m.getEmergencySigns())
+                );
+                m.updateEasyExplanation(explanation);
+                updated++;
+            } catch (Exception e) {
+                failed++;
+            }
+        }
+        return Map.of("updated", updated, "failed", failed);
     }
 
     private MedicineListDto toListDto(List<Medicine> medicines) {
